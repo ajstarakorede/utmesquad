@@ -482,6 +482,7 @@ def candidates_list(request):
     return JsonResponse({'candidates': data})
 
 
+@csrf_exempt
 @api_login_required
 def register_candidate(request):
     """Register a new candidate."""
@@ -533,11 +534,11 @@ def register_candidate(request):
         candidate.photo = photo
         candidate.save()
     
-    # Generate PDF
+    # Generate PDF (best-effort — don't fail registration if PDF fails)
     try:
-        generate_candidate_pdf_file(candidate)
+        generate_candidate_pdf_buffer(candidate)
     except Exception as e:
-        print(f"PDF generation error: {e}")
+        print(f"PDF generation error (non-fatal): {e}")
     
     # Create notification
     create_notification(
@@ -1284,8 +1285,8 @@ def dashboard_stats(request):
 
 # ============== PDF GENERATION ==============
 
-def generate_candidate_pdf_file(candidate):
-    """Generate a PDF file for a candidate."""
+def generate_candidate_pdf_buffer(candidate):
+    """Generate a PDF and return as BytesIO buffer — no disk writes needed."""
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -1357,7 +1358,7 @@ def generate_candidate_pdf_file(candidate):
         ['Registration Number:', candidate.reg_number],
         ['Email:', candidate.email or 'N/A'],
         ['Phone:', candidate.phone or 'N/A'],
-        ['Password:', plain_password],  # plain password shown once in PDF
+        ['Password:', '[ See registration card ]'],  # password shown at registration time only
         ['Status:', 'Active' if candidate.is_active else 'Suspended'],
         ['Messaging:', 'Unlocked' if candidate.can_message else 'Locked'],
     ]
@@ -1421,47 +1422,41 @@ def generate_candidate_pdf_file(candidate):
     
     doc.build(elements)
     buffer.seek(0)
-    
-    # Save to file
+    return buffer
+
+
+def generate_candidate_pdf_file(candidate):
+    """Legacy wrapper — kept for backwards compatibility."""
+    buffer = generate_candidate_pdf_buffer(candidate)
     filename = f'UTME_SQUAD_{candidate.reg_number}.pdf'
-    filepath = os.path.join(settings.MEDIA_ROOT, 'candidate_files', filename)
-    os.makedirs(os.path.dirname(filepath), exist_ok=True)
-    
-    with open(filepath, 'wb') as f:
-        f.write(buffer.getvalue())
-    
-    # Save to model
-    CandidateFile.objects.create(
-        candidate=candidate,
-        file=f'candidate_files/{filename}',
-        file_type='pdf',
-        description=f'Registration details for {candidate.name}'
-    )
-    
+    try:
+        filepath = os.path.join(settings.MEDIA_ROOT, 'candidate_files', filename)
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        with open(filepath, 'wb') as f:
+            f.write(buffer.getvalue())
+    except Exception:
+        pass  # Ephemeral filesystem — skip saving
     return filename
 
 
 @api_login_required
 def generate_candidate_pdf(request, reg_number):
-    """Generate and download PDF for a candidate."""
+    """Generate and stream PDF directly - works on ephemeral file systems like Render."""
     try:
         candidate = Candidate.objects.get(reg_number=reg_number)
     except Candidate.DoesNotExist:
         return JsonResponse({'error': 'Candidate not found'}, status=404)
-    
+
     try:
-        filename = generate_candidate_pdf_file(candidate)
-        filepath = os.path.join(settings.MEDIA_ROOT, 'candidate_files', filename)
-        
-        if os.path.exists(filepath):
-            with open(filepath, 'rb') as f:
-                response = HttpResponse(f.read(), content_type='application/pdf')
-                response['Content-Disposition'] = f'attachment; filename="{filename}"'
-                return response
-        else:
-            return JsonResponse({'error': 'PDF generation failed'}, status=500)
+        pdf_buffer = generate_candidate_pdf_buffer(candidate)
+        filename = f'UTME_SQUAD_{candidate.reg_number}.pdf'
+        response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'error': f'PDF generation failed: {str(e)}'}, status=500)
 
 
 # ============== SETTINGS ==============
