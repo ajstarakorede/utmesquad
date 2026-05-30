@@ -1,0 +1,1452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UTME SQUAD - Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: { slate: { 950: '#020617', 900: '#0f172a', 800: '#1e293b', 700: '#334155' } }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .animate-slide-in { animation: slideIn 0.4s ease-out; }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        .admin-gradient { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .nav-item { transition: all 0.3s ease; }
+        .nav-item:hover { background: rgba(51, 65, 85, 0.5); }
+        .nav-item.active { background: rgba(102, 126, 234, 0.2); color: #c4b5fd; border: 1px solid rgba(102, 126, 234, 0.3); }
+        .mobile-sidebar { transform: translateX(-100%); transition: transform 0.3s ease-in-out; }
+        .mobile-sidebar.open { transform: translateX(0); }
+        .sidebar-overlay { opacity: 0; visibility: hidden; transition: all 0.3s ease-in-out; }
+        .sidebar-overlay.open { opacity: 1; visibility: visible; }
+        .message-bubble { max-width: 70%; padding: 12px 16px; border-radius: 16px; word-wrap: break-word; }
+        .message-sent { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-bottom-right-radius: 4px; margin-left: auto; }
+        .message-received { background: rgba(51, 65, 85, 0.8); border-bottom-left-radius: 4px; }
+        .typing-indicator span { display: inline-block; width: 6px; height: 6px; background: #94a3b8; border-radius: 50%; margin: 0 2px; animation: typing 1.4s infinite; }
+        @keyframes typing { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-10px); } }
+        .notification-badge { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+    </style>
+</head>
+<body class="bg-slate-950 text-white min-h-screen">
+    <!-- Background Effects -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute top-0 left-1/4 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl animate-pulse"></div>
+        <div class="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl animate-pulse" style="animation-delay: 1s"></div>
+    </div>
+
+    <!-- Mobile Header -->
+    <div class="lg:hidden flex items-center justify-between p-4 bg-slate-900/80 border-b border-slate-800 relative z-30">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 admin-gradient rounded-lg flex items-center justify-center">
+                <i class="fas fa-shield-alt text-white"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-white text-sm">Administrator</h3>
+                <p class="text-xs text-purple-400">Full Access</p>
+            </div>
+        </div>
+        <button onclick="toggleSidebar()" class="p-2 text-white hover:bg-slate-800 rounded-lg transition">
+            <i class="fas fa-bars text-xl"></i>
+        </button>
+    </div>
+
+    <!-- Sidebar Overlay -->
+    <div id="sidebarOverlay" onclick="toggleSidebar()" class="sidebar-overlay fixed inset-0 bg-black/50 z-40 lg:hidden"></div>
+
+    <div class="flex h-screen overflow-hidden relative z-10">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="mobile-sidebar lg:transform-none fixed lg:static inset-y-0 left-0 w-72 glass-panel border-r border-slate-800 flex flex-col z-50 lg:z-auto h-full">
+            <!-- Desktop Header -->
+            <div class="hidden lg:flex items-center space-x-3 p-6 border-b border-slate-800">
+                <div class="w-12 h-12 admin-gradient rounded-xl flex items-center justify-center shadow-lg">
+                    <i class="fas fa-shield-alt text-white"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-white">Administrator</h3>
+                    <p class="text-xs text-purple-400">Full Access</p>
+                </div>
+            </div>
+
+            <!-- Mobile Close -->
+            <div class="lg:hidden p-4 border-b border-slate-800 flex items-center justify-between">
+                <span class="font-bold text-lg">Menu</span>
+                <button onclick="toggleSidebar()" class="p-2 text-slate-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
+                <button onclick="showSection('dashboard')" id="nav-dashboard" class="nav-item active w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left">
+                    <i class="fas fa-chart-line w-5"></i><span>Dashboard</span>
+                </button>
+                <button onclick="showSection('candidates')" id="nav-candidates" class="nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-300 text-left">
+                    <i class="fas fa-users w-5"></i><span>Candidates</span>
+                    <span id="candidateCount" class="ml-auto bg-purple-600 text-xs px-2 py-1 rounded-full">0</span>
+                </button>
+                <button onclick="showSection('register')" id="nav-register" class="nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-300 text-left">
+                    <i class="fas fa-user-plus w-5"></i><span>Register Candidate</span>
+                </button>
+                <button onclick="showSection('messages')" id="nav-messages" class="nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-300 text-left">
+                    <i class="fas fa-comments w-5"></i><span>Messages</span>
+                    <span id="msgCount" class="ml-auto bg-red-500 text-xs px-2 py-1 rounded-full hidden">0</span>
+                </button>
+                <button onclick="showSection('groups')" id="nav-groups" class="nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-300 text-left">
+                    <i class="fas fa-users-cog w-5"></i><span>Groups</span>
+                </button>
+                <button onclick="showSection('unlocks')" id="nav-unlocks" class="nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-300 text-left">
+                    <i class="fas fa-unlock w-5"></i><span>Unlock Records</span>
+                    <span id="unlockCount" class="ml-auto bg-yellow-500 text-xs px-2 py-1 rounded-full hidden">0</span>
+                </button>
+                <button onclick="showSection('settings')" id="nav-settings" class="nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-300 text-left">
+                    <i class="fas fa-cog w-5"></i><span>Settings</span>
+                </button>
+            </nav>
+
+            <!-- Logout -->
+            <div class="p-4 border-t border-slate-800">
+                <button onclick="logout()" class="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-xl transition-all">
+                    <i class="fas fa-sign-out-alt"></i><span>Logout</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto bg-slate-950/50 p-4 lg:p-8">
+            <!-- Toast Notification -->
+            <div id="toast" class="fixed top-4 right-4 z-50 transform translate-x-full transition-transform duration-300 max-w-sm">
+                <div class="glass-panel rounded-xl p-4 shadow-2xl flex items-start space-x-3">
+                    <i id="toastIcon" class="fas fa-check-circle text-green-400 mt-1"></i>
+                    <div>
+                        <h4 id="toastTitle" class="font-semibold text-sm">Success</h4>
+                        <p id="toastMessage" class="text-xs text-slate-400 mt-1">Operation completed</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ DASHBOARD SECTION ============ -->
+            <div id="section-dashboard" class="animate-fade-in">
+                <h2 class="text-2xl lg:text-3xl font-bold mb-6">Dashboard</h2>
+                
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
+                    <div class="glass-panel rounded-2xl p-4 lg:p-6 border-l-4 border-purple-500">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="w-10 h-10 lg:w-12 lg:h-12 bg-purple-500/20 rounded-xl flex items-center justify-center">
+                                <i class="fas fa-users text-purple-400"></i>
+                            </div>
+                            <span class="text-2xl lg:text-3xl font-bold" id="statTotal">0</span>
+                        </div>
+                        <p class="text-slate-400 text-xs lg:text-sm">Total Candidates</p>
+                    </div>
+                    <div class="glass-panel rounded-2xl p-4 lg:p-6 border-l-4 border-green-500">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="w-10 h-10 lg:w-12 lg:h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
+                                <i class="fas fa-user-check text-green-400"></i>
+                            </div>
+                            <span class="text-2xl lg:text-3xl font-bold" id="statActive">0</span>
+                        </div>
+                        <p class="text-slate-400 text-xs lg:text-sm">Active Now</p>
+                    </div>
+                    <div class="glass-panel rounded-2xl p-4 lg:p-6 border-l-4 border-blue-500">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="w-10 h-10 lg:w-12 lg:h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
+                                <i class="fas fa-comment-dots text-blue-400"></i>
+                            </div>
+                            <span class="text-2xl lg:text-3xl font-bold" id="statMessages">0</span>
+                        </div>
+                        <p class="text-slate-400 text-xs lg:text-sm">Messages</p>
+                    </div>
+                    <div class="glass-panel rounded-2xl p-4 lg:p-6 border-l-4 border-yellow-500">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="w-10 h-10 lg:w-12 lg:h-12 bg-yellow-500/20 rounded-xl flex items-center justify-center">
+                                <i class="fas fa-unlock text-yellow-400"></i>
+                            </div>
+                            <span class="text-2xl lg:text-3xl font-bold" id="statUnlocked">0</span>
+                        </div>
+                        <p class="text-slate-400 text-xs lg:text-sm">Unlocked</p>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="glass-panel rounded-2xl p-6 mb-6">
+                    <h3 class="text-xl font-bold mb-4">Quick Actions</h3>
+                    <div class="flex flex-wrap gap-3">
+                        <button onclick="showSection('register')" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-sm transition">
+                            <i class="fas fa-user-plus mr-2"></i>Register New Candidate
+                        </button>
+                        <button onclick="showSection('candidates')" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm transition">
+                            <i class="fas fa-users mr-2"></i>View All Candidates
+                        </button>
+                        <button onclick="showSection('messages')" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm transition">
+                            <i class="fas fa-comments mr-2"></i>Messages
+                        </button>
+                        <button onclick="showSection('settings')" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm transition">
+                            <i class="fas fa-cog mr-2"></i>Settings
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass-panel rounded-2xl p-6">
+                        <h3 class="text-lg font-bold mb-4">Recent Candidates</h3>
+                        <div id="recentCandidates" class="space-y-3 max-h-64 overflow-y-auto">
+                            <p class="text-slate-500 text-center py-4">No candidates yet</p>
+                        </div>
+                    </div>
+                    <div class="glass-panel rounded-2xl p-6">
+                        <h3 class="text-lg font-bold mb-4">Recent Unlocks</h3>
+                        <div id="recentUnlocks" class="space-y-3 max-h-64 overflow-y-auto">
+                            <p class="text-slate-500 text-center py-4">No unlocks yet</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ CANDIDATES SECTION ============ -->
+            <div id="section-candidates" class="hidden animate-fade-in">
+                <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-6 gap-4">
+                    <h2 class="text-2xl lg:text-3xl font-bold">All Candidates</h2>
+                    <div class="flex space-x-3 w-full lg:w-auto">
+                        <input type="text" id="searchCandidates" placeholder="Search candidates..."
+                            class="flex-1 lg:flex-none px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-lg focus:outline-none focus:border-purple-500"
+                            onkeyup="searchCandidates()">
+                        <button onclick="loadCandidates()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition">
+                            <i class="fas fa-sync"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="glass-panel rounded-2xl overflow-hidden overflow-x-auto">
+                    <table class="w-full min-w-[600px]">
+                        <thead class="bg-slate-800/50 border-b border-slate-700">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase">Photo</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase">Name & Reg No</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase">Subjects</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase">Status</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="candidatesTable" class="divide-y divide-slate-800"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ============ REGISTER SECTION ============ -->
+            <div id="section-register" class="hidden animate-fade-in">
+                <h2 class="text-2xl lg:text-3xl font-bold mb-6">Register New Candidate</h2>
+                <div class="glass-panel rounded-3xl p-6 lg:p-8 max-w-4xl">
+                    <form id="registerForm" onsubmit="registerCandidate(event)" class="space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-300 mb-2">Full Name *</label>
+                                    <input type="text" id="regName" required
+                                        class="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:border-purple-500 transition-all"
+                                        placeholder="Enter full name">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-300 mb-2">Registration Number *</label>
+                                    <div class="flex space-x-2">
+                                        <input type="text" id="regNumber" required
+                                            class="flex-1 px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:border-purple-500 transition-all font-mono uppercase"
+                                            placeholder="e.g., UTME-2026-001">
+                                        <button type="button" onclick="generateRegNumber()"
+                                            class="px-4 py-3 bg-slate-700 hover:bg-slate-600 rounded-xl text-sm font-medium transition-all whitespace-nowrap">
+                                            Generate
+                                        </button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-300 mb-2">Email</label>
+                                    <input type="email" id="regEmail"
+                                        class="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:border-purple-500 transition-all"
+                                        placeholder="candidate@email.com">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-300 mb-2">Phone</label>
+                                    <input type="tel" id="regPhone"
+                                        class="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:border-purple-500 transition-all"
+                                        placeholder="+234...">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-300 mb-2">Password</label>
+                                    <input type="text" id="regPassword" value=""
+                                        class="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:border-purple-500 transition-all font-mono">
+                                    <p class="text-xs text-slate-500 mt-1">Auto-generated secure password</p>
+                                </div>
+                            </div>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-300 mb-2">Profile Picture</label>
+                                    <div class="flex items-center space-x-4">
+                                        <img id="photoPreview" src="/static/images/default-avatar.svg"
+                                            class="w-20 h-20 lg:w-24 lg:h-24 rounded-full object-cover border-2 border-purple-500 bg-slate-800">
+                                        <div class="flex-1">
+                                            <input type="file" id="regPhoto" accept="image/*" onchange="previewPhoto(event)"
+                                                class="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-500">
+                                            <p class="text-xs text-slate-500 mt-2">Max 2MB (JPG, PNG)</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-300 mb-2">Subject Combination * (Select 3 or 4)</label>
+                                    <div class="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto">
+                                        <label class="flex items-center space-x-2 p-2 bg-slate-800/30 rounded-lg cursor-pointer hover:bg-slate-800/50 transition">
+                                            <input type="checkbox" value="English" class="subject-check w-4 h-4 rounded border-slate-600 text-purple-500" checked disabled>
+                                            <span class="text-sm">English (Compulsory)</span>
+                                        </label>
+                                        <label class="flex items-center space-x-2 p-2 bg-slate-800/30 rounded-lg cursor-pointer hover:bg-slate-800/50 transition">
+                                            <input type="checkbox" value="Mathematics" class="subject-check w-4 h-4 rounded border-slate-600 text-purple-500">
+                                            <span class="text-sm">Mathematics</span>
+                                        </label>
+                                        <label class="flex items-center space-x-2 p-2 bg-slate-800/30 rounded-lg cursor-pointer hover:bg-slate-800/50 transition">
+                                            <input type="checkbox" value="Physics" class="subject-check w-4 h-4 rounded border-slate-600 text-purple-500">
+                                            <span class="text-sm">Physics</span>
+                                        </label>
+                                        <label class="flex items-center space-x-2 p-2 bg-slate-800/30 rounded-lg cursor-pointer hover:bg-slate-800/50 transition">
+                                            <input type="checkbox" value="Chemistry" class="subject-check w-4 h-4 rounded border-slate-600 text-purple-500">
+                                            <span class="text-sm">Chemistry</span>
+                                        </label>
+                                        <label class="flex items-center space-x-2 p-2 bg-slate-800/30 rounded-lg cursor-pointer hover:bg-slate-800/50 transition">
+                                            <input type="checkbox" value="Biology" class="subject-check w-4 h-4 rounded border-slate-600 text-purple-500">
+                                            <span class="text-sm">Biology</span>
+                                        </label>
+                                        <label class="flex items-center space-x-2 p-2 bg-slate-800/30 rounded-lg cursor-pointer hover:bg-slate-800/50 transition">
+                                            <input type="checkbox" value="Government" class="subject-check w-4 h-4 rounded border-slate-600 text-purple-500">
+                                            <span class="text-sm">Government</span>
+                                        </label>
+                                        <label class="flex items-center space-x-2 p-2 bg-slate-800/30 rounded-lg cursor-pointer hover:bg-slate-800/50 transition">
+                                            <input type="checkbox" value="Literature" class="subject-check w-4 h-4 rounded border-slate-600 text-purple-500">
+                                            <span class="text-sm">Literature</span>
+                                        </label>
+                                        <label class="flex items-center space-x-2 p-2 bg-slate-800/30 rounded-lg cursor-pointer hover:bg-slate-800/50 transition">
+                                            <input type="checkbox" value="CRS" class="subject-check w-4 h-4 rounded border-slate-600 text-purple-500">
+                                            <span class="text-sm">CRS</span>
+                                        </label>
+                                        <label class="flex items-center space-x-2 p-2 bg-slate-800/30 rounded-lg cursor-pointer hover:bg-slate-800/50 transition">
+                                            <input type="checkbox" value="IRS" class="subject-check w-4 h-4 rounded border-slate-600 text-purple-500">
+                                            <span class="text-sm">IRS</span>
+                                        </label>
+                                        <label class="flex items-center space-x-2 p-2 bg-slate-800/30 rounded-lg cursor-pointer hover:bg-slate-800/50 transition">
+                                            <input type="checkbox" value="Economics" class="subject-check w-4 h-4 rounded border-slate-600 text-purple-500">
+                                            <span class="text-sm">Economics</span>
+                                        </label>
+                                        <label class="flex items-center space-x-2 p-2 bg-slate-800/30 rounded-lg cursor-pointer hover:bg-slate-800/50 transition">
+                                            <input type="checkbox" value="Commerce" class="subject-check w-4 h-4 rounded border-slate-600 text-purple-500">
+                                            <span class="text-sm">Commerce</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="pt-4 border-t border-slate-800">
+                            <button type="submit"
+                                class="w-full py-4 admin-gradient hover:opacity-90 rounded-xl font-bold text-lg shadow-lg shadow-purple-500/25 transition-all transform hover:scale-[1.02]">
+                                <i class="fas fa-user-plus mr-2"></i>Register Candidate
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- ============ MESSAGES SECTION ============ -->
+            <div id="section-messages" class="hidden animate-fade-in">
+                <h2 class="text-2xl lg:text-3xl font-bold mb-6">Messages</h2>
+                <div class="h-[calc(100vh-180px)] lg:h-auto">
+                    <div class="h-full flex flex-col lg:flex-row gap-4">
+                        <!-- Candidates List -->
+                        <div class="w-full lg:w-80 glass-panel rounded-2xl flex flex-col overflow-hidden">
+                            <div class="p-4 border-b border-slate-800">
+                                <h3 class="font-bold"><i class="fas fa-users mr-2"></i>Select Candidate</h3>
+                            </div>
+                            <div id="messageCandidateList" class="flex-1 overflow-y-auto p-3 space-y-2">
+                                <p class="text-slate-500 text-center py-4">No candidates</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Chat Area -->
+                        <div class="flex-1 glass-panel rounded-2xl flex flex-col overflow-hidden min-h-[400px]">
+                            <div id="chatHeader" class="p-4 border-b border-slate-800 flex items-center justify-between">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 bg-slate-700 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-comments"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="font-bold" id="chatTitle">Select a candidate</h3>
+                                        <p class="text-xs text-slate-400" id="chatSubtitle">Click a candidate to start messaging</p>
+                                    </div>
+                                </div>
+                                <div id="chatActions" class="hidden flex items-center space-x-2">
+                                    <button onclick="togglePauseCurrentUser()" id="pauseBtn" class="px-3 py-1.5 bg-yellow-600/20 text-yellow-400 rounded-lg text-xs hover:bg-yellow-600/30 transition">
+                                        <i class="fas fa-pause mr-1"></i>Pause
+                                    </button>
+                                    <button onclick="toggleMessageCurrentUser()" id="msgToggleBtn" class="px-3 py-1.5 bg-green-600/20 text-green-400 rounded-lg text-xs hover:bg-green-600/30 transition">
+                                        <i class="fas fa-check mr-1"></i>Can Msg
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div id="messagesArea" class="flex-1 overflow-y-auto p-4 space-y-3 min-h-[250px]">
+                                <div class="h-full flex flex-col items-center justify-center text-slate-500">
+                                    <div class="w-20 h-20 bg-slate-800/50 rounded-full flex items-center justify-center mb-4 text-3xl">
+                                        <i class="fas fa-comments"></i>
+                                    </div>
+                                    <p>Select a candidate to start messaging</p>
+                                </div>
+                            </div>
+                            
+                            <div id="messageInputArea" class="p-4 border-t border-slate-800 hidden">
+                                <div class="flex space-x-3">
+                                    <input type="text" id="messageInput" placeholder="Type a message..."
+                                        class="flex-1 px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:border-purple-500 transition-all"
+                                        onkeypress="if (event.key === 'Enter') sendMessage();">
+                                    <button onclick="sendMessage()"
+                                        class="px-6 py-3 admin-gradient hover:opacity-90 rounded-xl font-semibold transition-all">
+                                        <i class="fas fa-paper-plane"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ GROUPS SECTION ============ -->
+            <div id="section-groups" class="hidden animate-fade-in">
+                <h2 class="text-2xl lg:text-3xl font-bold mb-6">Chat Groups</h2>
+                <div id="groupsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Groups will be loaded here -->
+                </div>
+            </div>
+
+            <!-- ============ UNLOCKS SECTION ============ -->
+            <div id="section-unlocks" class="hidden animate-fade-in">
+                <h2 class="text-2xl lg:text-3xl font-bold mb-6">Unlock Records</h2>
+                <div class="glass-panel rounded-2xl overflow-hidden overflow-x-auto">
+                    <table class="w-full min-w-[500px]">
+                        <thead class="bg-slate-800/50 border-b border-slate-700">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase">Candidate</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase">Reg Number</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase">Unlocked At</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase">IP Address</th>
+                            </tr>
+                        </thead>
+                        <tbody id="unlockTable" class="divide-y divide-slate-800"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ============ SETTINGS SECTION ============ -->
+            <div id="section-settings" class="hidden animate-fade-in">
+                <h2 class="text-2xl lg:text-3xl font-bold mb-6">Settings</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Change Admin Password -->
+                    <div class="glass-panel rounded-2xl p-6 space-y-6">
+                        <div>
+                            <h3 class="text-xl font-bold mb-4 text-purple-400">
+                                <i class="fas fa-key mr-2"></i>Change Admin Password
+                            </h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-300 mb-2">Current Password</label>
+                                    <input type="password" id="currentAdminPass"
+                                        class="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:border-purple-500 transition-all"
+                                        placeholder="Enter current password">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-300 mb-2">New Password</label>
+                                    <input type="password" id="newAdminPass"
+                                        class="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:border-purple-500 transition-all"
+                                        placeholder="Enter new password">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-300 mb-2">Confirm New Password</label>
+                                    <input type="password" id="confirmAdminPass"
+                                        class="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:border-purple-500 transition-all"
+                                        placeholder="Confirm new password">
+                                </div>
+                                <button onclick="changeAdminPassword()"
+                                    class="w-full py-3 bg-purple-600 hover:bg-purple-500 rounded-xl font-semibold transition-all">
+                                    <i class="fas fa-key mr-2"></i>Update Password
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Change Unlock Password -->
+                    <div class="glass-panel rounded-2xl p-6 space-y-6">
+                        <div>
+                            <h3 class="text-xl font-bold mb-4 text-yellow-400">
+                                <i class="fas fa-unlock mr-2"></i>Change Messaging Unlock Password
+                            </h3>
+                            <p class="text-sm text-slate-400 mb-4">Current password is hidden for security. Enter a new password to change it.</p>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-300 mb-2">New Unlock Password</label>
+                                    <input type="text" id="newUnlockPass"
+                                        class="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:border-yellow-500 transition-all"
+                                        placeholder="Enter new unlock password">
+                                    <p class="text-xs text-slate-500 mt-1">This is the password candidates enter to unlock messaging</p>
+                                </div>
+                                <button onclick="changeUnlockPassword()"
+                                    class="w-full py-3 bg-yellow-600 hover:bg-yellow-500 rounded-xl font-semibold transition-all">
+                                    <i class="fas fa-key mr-2"></i>Update Unlock Password
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Group Chat Modal -->
+    <div id="groupChatModal" class="fixed inset-0 bg-black/70 z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel rounded-2xl w-full max-w-3xl h-[80vh] flex flex-col overflow-hidden">
+            <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-purple-600/20 rounded-full flex items-center justify-center">
+                        <i class="fas fa-users" id="groupChatIcon"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold" id="groupChatTitle">Group Chat</h3>
+                        <p class="text-xs text-slate-400" id="groupChatSubtitle"></p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="toggleAdminOnlyPost()" id="adminOnlyBtn" class="px-3 py-1.5 bg-blue-600/20 text-blue-400 rounded-lg text-xs hover:bg-blue-600/30 transition">
+                        <i class="fas fa-lock mr-1"></i>Admin Only
+                    </button>
+                    <button onclick="closeGroupChat()" class="p-2 text-slate-400 hover:text-white transition">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="groupMessagesArea" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
+            <div class="p-4 border-t border-slate-800">
+                <div class="flex space-x-3">
+                    <button onclick="startVoiceRecording('group')" class="px-3 py-3 bg-slate-700 hover:bg-slate-600 rounded-xl transition">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                    <input type="text" id="groupMessageInput" placeholder="Type a message..."
+                        class="flex-1 px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:border-purple-500 transition-all"
+                        onkeypress="if (event.key === 'Enter') sendGroupMessage();">
+                    <button onclick="sendGroupMessage()"
+                        class="px-6 py-3 admin-gradient hover:opacity-90 rounded-xl font-semibold transition-all">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Voice Recording Modal -->
+    <div id="voiceModal" class="fixed inset-0 bg-black/70 z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel rounded-2xl p-8 max-w-md w-full text-center">
+            <div class="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+                <i class="fas fa-microphone text-red-400 text-3xl"></i>
+            </div>
+            <h3 class="text-xl font-bold mb-2">Recording...</h3>
+            <p class="text-slate-400 mb-6" id="recordingTime">0:00</p>
+            <div class="flex justify-center space-x-4">
+                <button onclick="stopVoiceRecording()" class="px-6 py-3 bg-red-600 hover:bg-red-500 rounded-xl font-semibold transition-all">
+                    <i class="fas fa-stop mr-2"></i>Stop
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============== GLOBAL STATE ==============
+        let currentSection = 'dashboard';
+        let candidates = [];
+        let groups = [];
+        let currentChatCandidate = null;
+        let currentGroup = null;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let recordingTimer = null;
+        let recordingSeconds = 0;
+        let ws = null;
+
+        // ============== UI FUNCTIONS ==============
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+            document.getElementById('sidebarOverlay').classList.toggle('open');
+        }
+
+        function showSection(section) {
+            // Hide all sections and reset all nav items to inactive state
+            document.querySelectorAll('[id^="section-"]').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.classList.remove('active', 'text-purple-300');
+                el.classList.add('text-slate-300');
+            });
+
+            // Show selected section
+            const sectionEl = document.getElementById(`section-${section}`);
+            if (sectionEl) sectionEl.classList.remove('hidden');
+
+            // Activate the correct nav item
+            const navEl = document.getElementById(`nav-${section}`);
+            if (navEl) {
+                navEl.classList.add('active');
+                navEl.classList.remove('text-slate-300');
+            }
+
+            currentSection = section;
+
+            // Close mobile sidebar only if it is currently open
+            const sidebar = document.getElementById('sidebar');
+            if (window.innerWidth < 1024 && sidebar.classList.contains('open')) {
+                toggleSidebar();
+            }
+
+            // Load section data
+            if (section === 'candidates') loadCandidates();
+            if (section === 'messages') loadMessageCandidates();
+            if (section === 'groups') loadGroups();
+            if (section === 'unlocks') loadUnlockRecords();
+            if (section === 'dashboard') loadDashboardStats();
+        }
+
+        function showToast(title, message, icon = 'fa-check-circle', color = 'text-green-400') {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastTitle').textContent = title;
+            document.getElementById('toastMessage').textContent = message;
+            document.getElementById('toastIcon').className = `fas ${icon} ${color} mt-1`;
+            toast.classList.remove('translate-x-full');
+            setTimeout(() => toast.classList.add('translate-x-full'), 4000);
+        }
+
+        // ============== AUTH ==============
+        async function logout() {
+            try {
+                await fetch('/api/auth/admin-logout/', { method: 'POST' });
+            } catch (e) {}
+            window.location.href = '/admin/';
+        }
+
+        // ============== DASHBOARD ==============
+        async function loadDashboardStats() {
+            try {
+                const response = await fetch('/api/dashboard/stats/');
+                const data = await response.json();
+                
+                document.getElementById('statTotal').textContent = data.total_candidates || 0;
+                document.getElementById('statActive').textContent = data.active_candidates || 0;
+                document.getElementById('statMessages').textContent = (data.total_private_messages || 0) + (data.total_group_messages || 0);
+                document.getElementById('statUnlocked').textContent = data.unlocked_count || 0;
+                document.getElementById('candidateCount').textContent = data.total_candidates || 0;
+                
+                // Recent candidates
+                const recentCandidatesEl = document.getElementById('recentCandidates');
+                if (data.recent_candidates && data.recent_candidates.length > 0) {
+                    recentCandidatesEl.innerHTML = data.recent_candidates.map(c => `
+                        <div class="flex items-center space-x-3 p-3 bg-slate-800/30 rounded-lg">
+                            <div class="w-8 h-8 bg-purple-600/20 rounded-full flex items-center justify-center">
+                                <i class="fas fa-user text-purple-400 text-xs"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-medium truncate">${c.name}</p>
+                                <p class="text-xs text-slate-500">${c.reg_number}</p>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+                
+                // Recent unlocks
+                const recentUnlocksEl = document.getElementById('recentUnlocks');
+                if (data.recent_unlocks && data.recent_unlocks.length > 0) {
+                    recentUnlocksEl.innerHTML = data.recent_unlocks.map(u => `
+                        <div class="flex items-center space-x-3 p-3 bg-slate-800/30 rounded-lg">
+                            <div class="w-8 h-8 bg-yellow-600/20 rounded-full flex items-center justify-center">
+                                <i class="fas fa-unlock text-yellow-400 text-xs"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-medium truncate">${u.candidate_name}</p>
+                                <p class="text-xs text-slate-500">${u.candidate_reg}</p>
+                            </div>
+                        </div>
+                    `).join('');
+                    document.getElementById('unlockCount').classList.remove('hidden');
+                    document.getElementById('unlockCount').textContent = data.total_unlock_records || 0;
+                }
+            } catch (error) {
+                console.error('Error loading dashboard stats:', error);
+            }
+        }
+
+        // ============== CANDIDATES ==============
+        async function loadCandidates() {
+            try {
+                const response = await fetch('/api/candidates/');
+                const data = await response.json();
+                candidates = data.candidates || [];
+                renderCandidatesTable();
+            } catch (error) {
+                console.error('Error loading candidates:', error);
+            }
+        }
+
+        function renderCandidatesTable() {
+            const search = document.getElementById('searchCandidates')?.value.toLowerCase() || '';
+            const tbody = document.getElementById('candidatesTable');
+            
+            let filtered = candidates;
+            if (search) {
+                filtered = candidates.filter(c => 
+                    c.name.toLowerCase().includes(search) || 
+                    c.reg_number.toLowerCase().includes(search)
+                );
+            }
+            
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-500">No candidates found</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = filtered.map(c => {
+                const statusClass = !c.is_active ? 'bg-red-500/20 text-red-400' : c.online ? 'bg-green-500/20 text-green-400' : 'bg-slate-700 text-slate-400';
+                const statusText = !c.is_active ? 'Suspended' : c.online ? 'Online' : 'Offline';
+                
+                return `
+                    <tr class="hover:bg-slate-800/30 transition ${!c.is_active ? 'opacity-50' : ''}">
+                        <td class="px-4 py-3">
+                            <img src="${c.photo}" class="w-10 h-10 rounded-full object-cover" onerror="this.src='/static/images/default-avatar.svg'">
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="font-medium text-sm">${c.name}</div>
+                            <div class="text-xs text-purple-400 font-mono">${c.reg_number}</div>
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="flex flex-wrap gap-1">
+                                ${c.subjects.map(s => `<span class="text-xs bg-slate-800 px-2 py-0.5 rounded">${s}</span>`).join('')}
+                            </div>
+                        </td>
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-1 rounded-full text-xs ${statusClass}">${statusText}</span>
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="flex items-center space-x-2">
+                                <button onclick="downloadPDF('${c.reg_number}')" class="text-blue-400 hover:text-blue-300" title="Download PDF">
+                                    <i class="fas fa-file-pdf"></i>
+                                </button>
+                                <button onclick="openChatWithCandidate('${c.reg_number}')" class="text-green-400 hover:text-green-300" title="Message">
+                                    <i class="fas fa-comment"></i>
+                                </button>
+                                <button onclick="togglePause('${c.reg_number}')" class="text-yellow-400 hover:text-yellow-300" title="Toggle Pause">
+                                    <i class="fas fa-pause"></i>
+                                </button>
+                                <button onclick="deleteCandidate('${c.reg_number}')" class="text-red-400 hover:text-red-300" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function searchCandidates() {
+            renderCandidatesTable();
+        }
+
+        async function deleteCandidate(regNumber) {
+            if (!confirm(`Delete candidate ${regNumber}? This cannot be undone.`)) return;
+            try {
+                const response = await fetch(`/api/candidates/${regNumber}/delete/`, { method: 'POST' });
+                if (response.ok) {
+                    showToast('Deleted', 'Candidate removed successfully', 'fa-trash');
+                    loadCandidates();
+                    loadDashboardStats();
+                }
+            } catch (error) {
+                showToast('Error', 'Failed to delete candidate', 'fa-exclamation-circle', 'text-red-400');
+            }
+        }
+
+        async function downloadPDF(regNumber) {
+            try {
+                const response = await fetch(`/api/candidates/${regNumber}/generate-pdf/`);
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `UTME_SQUAD_${regNumber}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+                    showToast('Success', 'PDF downloaded successfully', 'fa-file-pdf');
+                } else {
+                    showToast('Error', 'Failed to generate PDF', 'fa-exclamation-circle', 'text-red-400');
+                }
+            } catch (error) {
+                showToast('Error', 'Failed to download PDF', 'fa-exclamation-circle', 'text-red-400');
+            }
+        }
+
+        // ============== REGISTRATION ==============
+        function generateSecurePassword() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$';
+            let pwd = '';
+            for (let i = 0; i < 12; i++) {
+                pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return pwd;
+        }
+
+        function generateRegNumber() {
+            const year = new Date().getFullYear();
+            const random = Math.floor(100 + Math.random() * 900);
+            document.getElementById('regNumber').value = `UTME-${year}-${random.toString().padStart(3, '0')}`;
+            // Also auto-generate a secure password
+            if (!document.getElementById('regPassword').value) {
+                document.getElementById('regPassword').value = generateSecurePassword();
+            }
+        }
+
+        function previewPhoto(event) {
+            const file = event.target.files[0];
+            if (file) {
+                if (file.size > 2 * 1024 * 1024) {
+                    showToast('Error', 'Image must be less than 2MB', 'fa-exclamation-circle', 'text-red-400');
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    document.getElementById('photoPreview').src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        async function registerCandidate(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('regName').value.trim();
+            const regNumber = document.getElementById('regNumber').value.trim().toUpperCase();
+            const email = document.getElementById('regEmail').value.trim();
+            const phone = document.getElementById('regPhone').value.trim();
+            const password = document.getElementById('regPassword').value.trim();
+            const subjects = Array.from(document.querySelectorAll('.subject-check:checked')).map(cb => cb.value);
+            const photoFile = document.getElementById('regPhoto').files[0];
+            
+            if (!name || !regNumber) {
+                showToast('Error', 'Name and Registration Number are required', 'fa-exclamation-circle', 'text-red-400');
+                return;
+            }
+            
+            if (subjects.length < 4) {
+                showToast('Error', 'Select at least 3 subjects plus English (total 4)', 'fa-exclamation-circle', 'text-red-400');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('name', name);
+            formData.append('reg_number', regNumber);
+            formData.append('email', email);
+            formData.append('phone', phone);
+            formData.append('password', password);
+            formData.append('subjects', JSON.stringify(subjects));
+            if (photoFile) formData.append('photo', photoFile);
+            
+            try {
+                const response = await fetch('/api/candidates/register/', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showToast('Success', `${data.candidate.name} registered! Reg: ${data.candidate.reg_number}`, 'fa-user-plus');
+                    document.getElementById('registerForm').reset();
+                    document.getElementById('photoPreview').src = '/static/images/default-avatar.svg';
+                    loadDashboardStats();
+                    showSection('candidates');
+                } else {
+                    showToast('Error', data.error || 'Registration failed', 'fa-exclamation-circle', 'text-red-400');
+                }
+            } catch (error) {
+                showToast('Error', 'Registration failed', 'fa-exclamation-circle', 'text-red-400');
+            }
+        }
+
+        // ============== MESSAGES ==============
+        async function loadMessageCandidates() {
+            await loadCandidates();
+            const container = document.getElementById('messageCandidateList');
+            
+            if (candidates.length === 0) {
+                container.innerHTML = '<p class="text-slate-500 text-center py-4">No candidates</p>';
+                return;
+            }
+            
+            container.innerHTML = candidates.map(c => `
+                <button onclick="openChatWithCandidate('${c.reg_number}')" 
+                    class="w-full flex items-center space-x-3 p-3 rounded-xl hover:bg-slate-800/50 transition text-left ${currentChatCandidate?.reg_number === c.reg_number ? 'bg-slate-800/50 border border-purple-500/30' : ''}">
+                    <div class="relative">
+                        <img src="${c.photo}" class="w-10 h-10 rounded-full object-cover" onerror="this.src='/static/images/default-avatar.svg'">
+                        ${c.online ? '<div class="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-slate-800"></div>' : ''}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium truncate">${c.name}</p>
+                        <p class="text-xs text-slate-500">${c.reg_number}</p>
+                    </div>
+                    ${c.can_message ? '<i class="fas fa-unlock text-green-400 text-xs"></i>' : '<i class="fas fa-lock text-slate-600 text-xs"></i>'}
+                </button>
+            `).join('');
+        }
+
+        async function openChatWithCandidate(regNumber) {
+            const candidate = candidates.find(c => c.reg_number === regNumber);
+            if (!candidate) return;
+            
+            currentChatCandidate = candidate;
+            
+            // Update header
+            document.getElementById('chatTitle').textContent = candidate.name;
+            document.getElementById('chatSubtitle').textContent = candidate.reg_number + (candidate.online ? ' - Online' : ' - Offline');
+            document.getElementById('chatActions').classList.remove('hidden');
+            document.getElementById('messageInputArea').classList.remove('hidden');
+            
+            // Update pause button state
+            const pauseBtn = document.getElementById('pauseBtn');
+            pauseBtn.innerHTML = candidate.messaging_paused ? '<i class="fas fa-play mr-1"></i>Unpause' : '<i class="fas fa-pause mr-1"></i>Pause';
+            pauseBtn.className = candidate.messaging_paused 
+                ? 'px-3 py-1.5 bg-green-600/20 text-green-400 rounded-lg text-xs hover:bg-green-600/30 transition'
+                : 'px-3 py-1.5 bg-yellow-600/20 text-yellow-400 rounded-lg text-xs hover:bg-yellow-600/30 transition';
+            
+            // Update message toggle button
+            const msgToggleBtn = document.getElementById('msgToggleBtn');
+            msgToggleBtn.innerHTML = candidate.can_message ? '<i class="fas fa-lock mr-1"></i>Lock' : '<i class="fas fa-check mr-1"></i>Can Msg';
+            
+            // Reload candidate list to show active state
+            loadMessageCandidates();
+            
+            // Load messages
+            loadMessages();
+        }
+
+        async function loadMessages() {
+            if (!currentChatCandidate) return;
+            
+            try {
+                const response = await fetch(`/api/messages/admin/admin/?other=${currentChatCandidate.reg_number}`);
+                const data = await response.json();
+                const messages = data.messages || [];
+                
+                const area = document.getElementById('messagesArea');
+                if (messages.length === 0) {
+                    area.innerHTML = `
+                        <div class="h-full flex flex-col items-center justify-center text-slate-500">
+                            <div class="w-16 h-16 bg-slate-800/50 rounded-full flex items-center justify-center mb-3 text-2xl">
+                                <i class="fas fa-comment"></i>
+                            </div>
+                            <p class="text-sm">No messages yet. Start the conversation!</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                area.innerHTML = messages.map(msg => {
+                    const isAdmin = msg.sender_type === 'admin';
+                    return `
+                        <div class="flex ${isAdmin ? 'justify-end' : 'justify-start'}">
+                            <div class="message-bubble ${isAdmin ? 'message-sent' : 'message-received'}">
+                                <p class="text-sm">${msg.content}</p>
+                                <p class="text-xs mt-1 ${isAdmin ? 'text-purple-200' : 'text-slate-500'}">${new Date(msg.created_at).toLocaleTimeString()}</p>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                // Scroll to bottom
+                area.scrollTop = area.scrollHeight;
+            } catch (error) {
+                console.error('Error loading messages:', error);
+            }
+        }
+
+        async function sendMessage() {
+            if (!currentChatCandidate) return;
+            
+            const input = document.getElementById('messageInput');
+            const content = input.value.trim();
+            if (!content) return;
+            
+            try {
+                const response = await fetch('/api/messages/send/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        receiver_type: 'candidate',
+                        receiver_id: currentChatCandidate.reg_number,
+                        receiver_name: currentChatCandidate.name,
+                        content: content,
+                    })
+                });
+                
+                if (response.ok) {
+                    input.value = '';
+                    loadMessages();
+                    
+                    // Send via WebSocket
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({
+                            type: 'private_message',
+                            receiver_id: currentChatCandidate.reg_number,
+                            content: content,
+                            sender_name: 'Administrator',
+                            timestamp: new Date().toISOString()
+                        }));
+                    }
+                }
+            } catch (error) {
+                showToast('Error', 'Failed to send message', 'fa-exclamation-circle', 'text-red-400');
+            }
+        }
+
+        async function togglePause(regNumber) {
+            try {
+                const response = await fetch(`/api/candidates/${regNumber}/toggle-pause/`, { method: 'POST' });
+                if (response.ok) {
+                    const data = await response.json();
+                    showToast('Success', `Messaging ${data.messaging_paused ? 'paused' : 'unpaused'}`, 'fa-check');
+                    loadCandidates();
+                    if (currentChatCandidate?.reg_number === regNumber) {
+                        currentChatCandidate.messaging_paused = data.messaging_paused;
+                        openChatWithCandidate(regNumber);
+                    }
+                }
+            } catch (error) {
+                showToast('Error', 'Failed to toggle pause', 'fa-exclamation-circle', 'text-red-400');
+            }
+        }
+
+        async function togglePauseCurrentUser() {
+            if (!currentChatCandidate) return;
+            await togglePause(currentChatCandidate.reg_number);
+        }
+
+        async function toggleMessageCurrentUser() {
+            if (!currentChatCandidate) return;
+            try {
+                const response = await fetch(`/api/candidates/${currentChatCandidate.reg_number}/toggle-message/`, { method: 'POST' });
+                if (response.ok) {
+                    const data = await response.json();
+                    showToast('Success', `Messaging ${data.can_message ? 'enabled' : 'disabled'}`, 'fa-check');
+                    loadCandidates();
+                    currentChatCandidate.can_message = data.can_message;
+                    openChatWithCandidate(currentChatCandidate.reg_number);
+                }
+            } catch (error) {
+                showToast('Error', 'Failed to toggle messaging', 'fa-exclamation-circle', 'text-red-400');
+            }
+        }
+
+        // ============== GROUPS ==============
+        async function loadGroups() {
+            try {
+                const response = await fetch('/api/groups/');
+                const data = await response.json();
+                groups = data.groups || [];
+                
+                const container = document.getElementById('groupsList');
+                if (groups.length === 0) {
+                    container.innerHTML = '<p class="text-slate-500 text-center col-span-full py-8">No groups available</p>';
+                    return;
+                }
+                
+                container.innerHTML = groups.map(g => `
+                    <div class="glass-panel rounded-2xl p-6 hover:bg-slate-800/50 transition cursor-pointer" onclick="openGroupChat(${g.id}, '${g.name}', '${g.display_name}')">
+                        <div class="flex items-start justify-between mb-3">
+                            <div class="w-12 h-12 ${g.group_type === 'general' ? 'bg-purple-600/20' : 'bg-blue-600/20'} rounded-xl flex items-center justify-center">
+                                <i class="fas ${g.icon} ${g.group_type === 'general' ? 'text-purple-400' : 'text-blue-400'} text-xl"></i>
+                            </div>
+                            <span class="text-xs bg-slate-800 px-2 py-1 rounded-full">${g.member_count} members</span>
+                        </div>
+                        <h3 class="font-bold text-lg mb-1">${g.display_name}</h3>
+                        <p class="text-sm text-slate-400">${g.description || 'No description'}</p>
+                        ${g.admin_only_post ? '<span class="inline-block mt-2 text-xs bg-red-500/20 text-red-400 px-2 py-1 rounded">Admin Only</span>' : ''}
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading groups:', error);
+            }
+        }
+
+        async function openGroupChat(groupId, groupName, displayName) {
+            currentGroup = groups.find(g => g.id === groupId);
+            if (!currentGroup) return;
+            
+            document.getElementById('groupChatTitle').textContent = displayName;
+            document.getElementById('groupChatSubtitle').textContent = `${currentGroup.member_count} members`;
+            document.getElementById('groupChatModal').classList.remove('hidden');
+            
+            // Load group messages
+            loadGroupMessages(groupId);
+        }
+
+        async function loadGroupMessages(groupId) {
+            try {
+                const response = await fetch(`/api/groups/${groupId}/messages/`);
+                const data = await response.json();
+                const messages = data.messages || [];
+                
+                const area = document.getElementById('groupMessagesArea');
+                if (messages.length === 0) {
+                    area.innerHTML = '<div class="h-full flex flex-col items-center justify-center text-slate-500"><p>No messages yet. Be the first!</p></div>';
+                    return;
+                }
+                
+                area.innerHTML = messages.map(msg => {
+                    const isAdmin = msg.sender_type === 'admin';
+                    return `
+                        <div class="flex ${isAdmin ? 'justify-end' : 'justify-start'}">
+                            <div class="max-w-[70%]">
+                                ${!isAdmin ? `<p class="text-xs text-slate-500 mb-1">${msg.sender_name}</p>` : ''}
+                                <div class="message-bubble ${isAdmin ? 'message-sent' : 'message-received'}">
+                                    <p class="text-sm">${msg.content}</p>
+                                    <p class="text-xs mt-1 ${isAdmin ? 'text-purple-200' : 'text-slate-500'}">${new Date(msg.created_at).toLocaleTimeString()}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                area.scrollTop = area.scrollHeight;
+            } catch (error) {
+                console.error('Error loading group messages:', error);
+            }
+        }
+
+        async function sendGroupMessage() {
+            if (!currentGroup) return;
+            
+            const input = document.getElementById('groupMessageInput');
+            const content = input.value.trim();
+            if (!content) return;
+            
+            try {
+                const response = await fetch('/api/groups/send/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        group_id: currentGroup.id,
+                        content: content,
+                    })
+                });
+                
+                if (response.ok) {
+                    input.value = '';
+                    loadGroupMessages(currentGroup.id);
+                    
+                    // Send via WebSocket
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({
+                            type: 'group_message',
+                            group_id: currentGroup.id,
+                            group_name: currentGroup.name,
+                            content: content,
+                            sender_name: 'Administrator',
+                            timestamp: new Date().toISOString()
+                        }));
+                    }
+                }
+            } catch (error) {
+                showToast('Error', 'Failed to send message', 'fa-exclamation-circle', 'text-red-400');
+            }
+        }
+
+        async function toggleAdminOnlyPost() {
+            if (!currentGroup) return;
+            try {
+                const response = await fetch(`/api/groups/${currentGroup.id}/toggle-admin-only/`, { method: 'POST' });
+                if (response.ok) {
+                    const data = await response.json();
+                    showToast('Success', `Admin-only posting ${data.admin_only_post ? 'enabled' : 'disabled'}`, 'fa-check');
+                    currentGroup.admin_only_post = data.admin_only_post;
+                }
+            } catch (error) {
+                showToast('Error', 'Failed to toggle admin-only posting', 'fa-exclamation-circle', 'text-red-400');
+            }
+        }
+
+        function closeGroupChat() {
+            document.getElementById('groupChatModal').classList.add('hidden');
+            currentGroup = null;
+        }
+
+        // ============== UNLOCK RECORDS ==============
+        async function loadUnlockRecords() {
+            try {
+                const response = await fetch('/api/unlock/records/');
+                const data = await response.json();
+                const records = data.records || [];
+                
+                const tbody = document.getElementById('unlockTable');
+                if (records.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-slate-500">No unlock records yet</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = records.map(r => `
+                    <tr class="hover:bg-slate-800/30 transition">
+                        <td class="px-4 py-3 text-sm">${r.candidate_name}</td>
+                        <td class="px-4 py-3 text-sm text-purple-400 font-mono">${r.candidate_reg}</td>
+                        <td class="px-4 py-3 text-sm">${new Date(r.unlocked_at).toLocaleString()}</td>
+                        <td class="px-4 py-3 text-sm text-slate-500">${r.ip_address || 'N/A'}</td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading unlock records:', error);
+            }
+        }
+
+        // ============== SETTINGS ==============
+        async function changeAdminPassword() {
+            const current = document.getElementById('currentAdminPass').value;
+            const newPass = document.getElementById('newAdminPass').value;
+            const confirm = document.getElementById('confirmAdminPass').value;
+            
+            if (!current || !newPass || !confirm) {
+                showToast('Error', 'All fields are required', 'fa-exclamation-circle', 'text-red-400');
+                return;
+            }
+            
+            if (newPass !== confirm) {
+                showToast('Error', 'New passwords do not match', 'fa-exclamation-circle', 'text-red-400');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/settings/admin-password/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ current_password: current, new_password: newPass })
+                });
+                
+                if (response.ok) {
+                    showToast('Success', 'Admin password updated!', 'fa-key');
+                    document.getElementById('currentAdminPass').value = '';
+                    document.getElementById('newAdminPass').value = '';
+                    document.getElementById('confirmAdminPass').value = '';
+                } else {
+                    const data = await response.json();
+                    showToast('Error', data.error || 'Failed to update password', 'fa-exclamation-circle', 'text-red-400');
+                }
+            } catch (error) {
+                showToast('Error', 'Failed to update password', 'fa-exclamation-circle', 'text-red-400');
+            }
+        }
+
+        async function changeUnlockPassword() {
+            const newPass = document.getElementById('newUnlockPass').value.trim();
+            
+            if (!newPass || newPass.length < 2) {
+                showToast('Error', 'Password must be at least 2 characters', 'fa-exclamation-circle', 'text-red-400');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/unlock/password/change/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ new_password: newPass })
+                });
+                
+                if (response.ok) {
+                    showToast('Success', 'Unlock password updated!', 'fa-key');
+                    document.getElementById('newUnlockPass').value = '';
+                } else {
+                    showToast('Error', 'Failed to update unlock password', 'fa-exclamation-circle', 'text-red-400');
+                }
+            } catch (error) {
+                showToast('Error', 'Failed to update unlock password', 'fa-exclamation-circle', 'text-red-400');
+            }
+        }
+
+        // ============== VOICE MESSAGES ==============
+        async function startVoiceRecording(target) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                recordingSeconds = 0;
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+                
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    await uploadVoiceMessage(audioBlob, target);
+                    stream.getTracks().forEach(track => track.stop());
+                };
+                
+                mediaRecorder.start();
+                document.getElementById('voiceModal').classList.remove('hidden');
+                
+                recordingTimer = setInterval(() => {
+                    recordingSeconds++;
+                    const mins = Math.floor(recordingSeconds / 60);
+                    const secs = recordingSeconds % 60;
+                    document.getElementById('recordingTime').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+                }, 1000);
+            } catch (error) {
+                showToast('Error', 'Could not access microphone', 'fa-exclamation-circle', 'text-red-400');
+            }
+        }
+
+        function stopVoiceRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            clearInterval(recordingTimer);
+            document.getElementById('voiceModal').classList.add('hidden');
+            document.getElementById('recordingTime').textContent = '0:00';
+        }
+
+        async function uploadVoiceMessage(audioBlob, target) {
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'voice.webm');
+            formData.append('duration', recordingSeconds);
+            
+            if (target === 'group' && currentGroup) {
+                formData.append('receiver_type', 'group');
+                formData.append('receiver_id', 'group');
+                formData.append('group_id', currentGroup.id);
+            } else if (currentChatCandidate) {
+                formData.append('receiver_type', 'candidate');
+                formData.append('receiver_id', currentChatCandidate.reg_number);
+            }
+            
+            try {
+                const response = await fetch('/api/voice/upload/', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    showToast('Success', 'Voice message sent!', 'fa-microphone');
+                    if (target === 'group' && currentGroup) {
+                        loadGroupMessages(currentGroup.id);
+                    } else {
+                        loadMessages();
+                    }
+                }
+            } catch (error) {
+                showToast('Error', 'Failed to send voice message', 'fa-exclamation-circle', 'text-red-400');
+            }
+        }
+
+        // ============== WEBSOCKET ==============
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/chat/admin/admin/`;
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'private_message') {
+                    // Refresh messages if currently viewing that chat
+                    if (currentChatCandidate && data.sender_id === currentChatCandidate.reg_number) {
+                        loadMessages();
+                    }
+                    // Show notification
+                    showToast('New Message', `From ${data.sender_name}`, 'fa-comment', 'text-blue-400');
+                } else if (data.type === 'group_message') {
+                    if (currentGroup && data.group_id === currentGroup.id) {
+                        loadGroupMessages(currentGroup.id);
+                    }
+                }
+            };
+            
+            ws.onclose = () => {
+                console.log('WebSocket disconnected. Reconnecting...');
+                setTimeout(connectWebSocket, 3000);
+            };
+            
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+        }
+
+        // ============== CSRF HELPER ==============
+        function getCsrfToken() {
+            const name = 'csrftoken';
+            const cookies = document.cookie.split(';');
+            for (let c of cookies) {
+                const trimmed = c.trim();
+                const eqIdx = trimmed.indexOf('=');
+                if (eqIdx > -1 && trimmed.substring(0, eqIdx) === name) {
+                    return decodeURIComponent(trimmed.substring(eqIdx + 1));
+                }
+            }
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            return meta ? meta.getAttribute('content') : '';
+        }
+
+        // Patch all mutating fetch calls to include CSRF token automatically
+        const _origFetch = window.fetch.bind(window);
+        window.fetch = function(url, opts = {}) {
+            const method = (opts.method || 'GET').toUpperCase();
+            if (method !== 'GET' && method !== 'HEAD') {
+                opts.headers = opts.headers || {};
+                if (!opts.headers['X-CSRFToken']) {
+                    opts.headers['X-CSRFToken'] = getCsrfToken();
+                }
+            }
+            return _origFetch(url, opts);
+        };
+
+        // ============== INIT ==============
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Auth guard: verify the session is still active before rendering the dashboard
+            try {
+                const res = await _origFetch('/api/dashboard/stats/', { credentials: 'same-origin' });
+                if (res.status === 401 || res.status === 403) {
+                    window.location.replace('/admin/');
+                    return;
+                }
+            } catch (e) {
+                window.location.replace('/admin/');
+                return;
+            }
+            loadDashboardStats();
+            connectWebSocket();
+        });
+    </script>
+</body>
+</html>

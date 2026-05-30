@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UTME SQUAD - Candidate Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: { slate: { 950: '#020617', 900: '#0f172a', 800: '#1e293b', 700: '#334155' } }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .animate-slide-in { animation: slideIn 0.4s ease-out; }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        .candidate-gradient { background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%); }
+        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .mobile-sidebar { transform: translateX(-100%); transition: transform 0.3s ease-in-out; }
+        .mobile-sidebar.open { transform: translateX(0); }
+        .sidebar-overlay { opacity: 0; visibility: hidden; transition: all 0.3s ease-in-out; }
+        .sidebar-overlay.open { opacity: 1; visibility: visible; }
+        .message-bubble { max-width: 70%; padding: 12px 16px; border-radius: 16px; word-wrap: break-word; }
+        .message-sent { background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%); border-bottom-right-radius: 4px; margin-left: auto; }
+        .message-received { background: rgba(51, 65, 85, 0.8); border-bottom-left-radius: 4px; }
+        .typing-indicator span { display: inline-block; width: 6px; height: 6px; background: #94a3b8; border-radius: 50%; margin: 0 2px; animation: typing 1.4s infinite; }
+        @keyframes typing { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-10px); } }
+        .lock-overlay { background: linear-gradient(135deg, rgba(0,0,0,0.85) 0%, rgba(30,41,59,0.9) 100%); backdrop-filter: blur(8px); }
+        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+        .shimmer-text { background: linear-gradient(90deg, #667eea, #764ba2, #667eea); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: shimmer 3s linear infinite; }
+    </style>
+</head>
+<body class="bg-slate-950 text-white min-h-screen">
+    <!-- Background Effects -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute top-0 left-1/4 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl animate-pulse"></div>
+        <div class="absolute bottom-0 right-1/4 w-96 h-96 bg-pink-600/10 rounded-full blur-3xl animate-pulse" style="animation-delay: 1s"></div>
+    </div>
+
+    <!-- Mobile Header -->
+    <div class="lg:hidden flex items-center justify-between p-4 bg-slate-900/80 border-b border-slate-800 relative z-30">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 candidate-gradient rounded-lg flex items-center justify-center">
+                <i class="fas fa-graduation-cap text-white"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-white text-sm">{{ candidate.name }}</h3>
+                <p class="text-xs text-purple-400">{{ candidate.reg_number }}</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-3">
+            <button onclick="showNotifications()" class="relative p-2 text-white hover:bg-slate-800 rounded-lg transition">
+                <i class="fas fa-bell"></i>
+                <span id="notifBadge" class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-xs flex items-center justify-center hidden">0</span>
+            </button>
+            <button onclick="toggleSidebar()" class="p-2 text-white hover:bg-slate-800 rounded-lg transition">
+                <i class="fas fa-bars text-xl"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Sidebar Overlay -->
+    <div id="sidebarOverlay" onclick="toggleSidebar()" class="sidebar-overlay fixed inset-0 bg-black/50 z-40 lg:hidden"></div>
+
+    <div class="flex h-screen overflow-hidden relative z-10">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="mobile-sidebar lg:transform-none fixed lg:static inset-y-0 left-0 w-72 glass-panel border-r border-slate-800 flex flex-col z-50 lg:z-auto h-full">
+            <!-- Desktop Header -->
+            <div class="hidden lg:block p-6 border-b border-slate-800">
+                <div class="flex items-center space-x-3">
+                    <div class="w-12 h-12 candidate-gradient rounded-xl flex items-center justify-center shadow-lg">
+                        <i class="fas fa-graduation-cap text-white"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-white">{{ candidate.name }}</h3>
+                        <p class="text-xs text-purple-400">{{ candidate.reg_number }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mobile Close -->
+            <div class="lg:hidden p-4 border-b border-slate-800 flex items-center justify-between">
+                <span class="font-bold text-lg">Menu</span>
+                <button onclick="toggleSidebar()" class="p-2 text-slate-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
+                <button onclick="showSection('home')" id="nav-home" class="nav-item active w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left">
+                    <i class="fas fa-home w-5"></i><span>Home</span>
+                </button>
+                <button onclick="showSection('messages')" id="nav-messages" class="nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-300 text-left">
+                    <i class="fas fa-comments w-5"></i><span>Messages</span>
+                    {% if not is_unlocked %}
+                    <i class="fas fa-lock text-yellow-500 text-xs ml-auto"></i>
+                    {% endif %}
+                </button>
+                <button onclick="showSection('groups')" id="nav-groups" class="nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-300 text-left">
+                    <i class="fas fa-users w-5"></i><span>Groups</span>
+                </button>
+                <button onclick="showSection('profile')" id="nav-profile" class="nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-300 text-left">
+                    <i class="fas fa-user w-5"></i><span>My Profile</span>
+                </button>
+            </nav>
+
+            <!-- Unlock Status -->
+            {% if not is_unlocked %}
+            <div class="mx-4 mb-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
+                <div class="flex items-center space-x-2 mb-2">
+                    <i class="fas fa-lock text-yellow-400"></i>
+                    <span class="text-sm font-medium text-yellow-400">Messaging Locked</span>
+                </div>
+                <p class="text-xs text-slate-400 mb-2">Unlock to message other users</p>
+                <button onclick="showUnlockModal()" class="w-full py-2 bg-yellow-600/30 hover:bg-yellow-600/50 text-yellow-400 rounded-lg text-xs transition">
+                    <i class="fas fa-unlock mr-1"></i>Unlock Now
+                </button>
+            </div>
+            {% elif messaging_paused %}
+            <div class="mx-4 mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl">
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-pause-circle text-red-400"></i>
+                    <span class="text-sm font-medium text-red-400">Messaging Paused</span>
+                </div>
+                <p class="text-xs text-slate-400 mt-1">Admin has paused your messaging</p>
+            </div>
+            {% else %}
+            <div class="mx-4 mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-xl">
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-unlock text-green-400"></i>
+                    <span class="text-sm font-medium text-green-400">Messaging Active</span>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Logout -->
+            <div class="p-4 border-t border-slate-800">
+                <button onclick="logout()" class="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-xl transition-all">
+                    <i class="fas fa-sign-out-alt"></i><span>Logout</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto bg-slate-950/50 p-4 lg:p-8">
+            <!-- Toast Notification -->
+            <div id="toast" class="fixed top-4 right-4 z-50 transform translate-x-full transition-transform duration-300 max-w-sm">
+                <div class="glass-panel rounded-xl p-4 shadow-2xl flex items-start space-x-3">
+                    <i id="toastIcon" class="fas fa-check-circle text-green-400 mt-1"></i>
+                    <div>
+                        <h4 id="toastTitle" class="font-semibold text-sm">Success</h4>
+                        <p id="toastMessage" class="text-xs text-slate-400 mt-1">Operation completed</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ HOME SECTION ============ -->
+            <div id="section-home" class="animate-fade-in">
+                <!-- Welcome -->
+                <div class="glass-panel rounded-2xl p-6 mb-6">
+                    <div class="flex items-center space-x-4">
+                        <img src="{{ candidate.photo_url }}" class="w-16 h-16 rounded-full object-cover border-2 border-purple-500" onerror="this.src='/static/images/default-avatar.svg'">
+                        <div>
+                            <h2 class="text-2xl font-bold">Welcome, {{ candidate.name }}!</h2>
+                            <p class="text-slate-400">Registration: {{ candidate.reg_number }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div class="glass-panel rounded-2xl p-4 border-l-4 border-purple-500">
+                        <div class="w-10 h-10 bg-purple-500/20 rounded-xl flex items-center justify-center mb-2">
+                            <i class="fas fa-book text-purple-400"></i>
+                        </div>
+                        <p class="text-2xl font-bold">{{ candidate.subjects|length }}</p>
+                        <p class="text-slate-400 text-xs">Subjects</p>
+                    </div>
+                    <div class="glass-panel rounded-2xl p-4 border-l-4 border-green-500">
+                        <div class="w-10 h-10 bg-green-500/20 rounded-xl flex items-center justify-center mb-2">
+                            <i class="fas fa-envelope text-green-400"></i>
+                        </div>
+                        <p class="text-2xl font-bold" id="unreadCount">0</p>
+                        <p class="text-slate-400 text-xs">Unread Messages</p>
+                    </div>
+                    <div class="glass-panel rounded-2xl p-4 border-l-4 border-blue-500">
+                        <div class="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center mb-2">
+                            <i class="fas fa-users text-blue-400"></i>
+                        </div>
+                        <p class="text-2xl font-bold">{{ groups|length }}</p>
+                        <p class="text-slate-400 text-xs">Your Groups</p>
+                    </div>
+                    <div class="glass-panel rounded-2xl p-4 border-l-4 border-yellow-500">
+                        <div class="w-10 h-10 bg-yellow-500/20 rounded-xl flex items-center justify-center mb-2">
+                            {% if is_unlocked %}
+                            <i class="fas fa-unlock text-yellow-400"></i>
+                            {% else %}
+                            <i class="fas fa-lock text-yellow-400"></i>
+                            {% endif %}
+                        </div>
+                        <p class="text-2xl font-bold">{% if is_unlocked %}Active{% else %}Locked{% endif %}</p>
+                        <p class="text-slate-400 text-xs">Messaging</p>
+                    </div>
+                </div>
+
+                <!-- My Subjects -->
+                <div class="glass-panel rounded-2xl p-6 mb-6">
+                    <h3 class="text-xl font-bold mb-4"><i class="fas fa-book mr-2 text-purple-400"></i>My Subjects</h3>
+                    <div class="flex flex-wrap gap-2">
+                        {% for subject in candidate.subjects %}
+                        <span class="px-4 py-2 bg-slate-800/50 rounded-xl text-sm border border-slate-700">
+                            <i class="fas fa-check-circle text-green-400 mr-1"></i>{{ subject }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- My Groups Preview -->
+                <div class="glass-panel rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold"><i class="fas fa-users mr-2 text-blue-400"></i>My Groups</h3>
+                        <button onclick="showSection('groups')" class="text-sm text-purple-400 hover:text-purple-300 transition">View All</button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {% for group in groups %}
+                        <div class="flex items-center space-x-3 p-3 bg-slate-800/30 rounded-xl hover:bg-slate-800/50 transition cursor-pointer" onclick="openGroupChat({{ group.id }}, '{{ group.name }}', '{{ group.display_name }}')">
+                            <div class="w-10 h-10 {% if group.group_type == 'general' %}bg-purple-600/20{% else %}bg-blue-600/20{% endif %} rounded-lg flex items-center justify-center">
+                                <i class="fas {{ group.icon }} {% if group.group_type == 'general' %}text-purple-400{% else %}text-blue-400{% endif %}"></i>
+                            </div>
+                            <div>
+                                <p class="font-medium text-sm">{{ group.display_name }}</p>
+                                <p class="text-xs text-slate-500">{{ group.member_count }} members</p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ MESSAGES SECTION ============ -->
+            <div id="section-messages" class="hidden animate-fade-in">
+                <h2 class="text-2xl lg:text-3xl font-bold mb-6">Messages</h2>
+                
+                <!-- Locked Overlay -->
+                {% if not is_unlocked %}
+                <div class="lock-overlay rounded-3xl p-8 text-center relative overflow-hidden">
+                    <div class="absolute inset-0 bg-gradient-to-br from-purple-900/20 to-pink-900/20"></div>
+                    <div class="relative z-10">
+                        <div class="w-24 h-24 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <i class="fas fa-lock text-yellow-400 text-4xl"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold mb-3">Premium Feature Locked</h3>
+                        <p class="text-slate-400 mb-2">Direct messaging with other users is a premium feature.</p>
+                        <p class="text-slate-500 mb-6">Enter the unlock password to enable messaging.</p>
+                        <div class="max-w-xs mx-auto space-y-3">
+                            <input type="password" id="unlockPasswordInput" placeholder="Enter unlock password"
+                                class="w-full px-4 py-3 bg-slate-800/80 border border-slate-600 rounded-xl focus:outline-none focus:border-yellow-500 transition-all text-center text-lg tracking-widest"
+                                onkeypress="if (event.key === 'Enter') attemptUnlock();">
+                            <button onclick="attemptUnlock()"
+                                class="w-full py-3 bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500 rounded-xl font-bold transition-all">
+                                <i class="fas fa-unlock mr-2"></i>Unlock Messaging
+                            </button>
+                            <p class="text-xs text-slate-600">Password is hidden. Ask admin if you don't know it.</p>
+                        </div>
+                        <div id="unlockError" class="hidden mt-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 text-sm"></div>
+                    </div>
+                </div>
+                {% elif messaging_paused %}
+                <div class="glass-panel rounded-3xl p-8 text-center">
+                    <div class="w-24 h-24 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <i class="fas fa-pause-circle text-red-400 text-4xl"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-3">Messaging Paused</h3>
+                    <p class="text-slate-400">The administrator has temporarily paused your messaging privileges.</p>
+                    <p class="text-slate-500 mt-2">You can still receive messages from the admin and participate in groups.</p>
+                </div>
+                {% else %}
+                <!-- Admin Chat (always available) -->
+                <div class="glass-panel rounded-2xl flex flex-col overflow-hidden h-[calc(100vh-180px)]">
+                    <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 bg-purple-600/20 rounded-full flex items-center justify-center">
+                                <i class="fas fa-shield-alt text-purple-400"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold">Administrator</h3>
+                                <p class="text-xs text-green-400"><i class="fas fa-circle text-xs mr-1"></i>Online</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="adminMessagesArea" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
+                    <div class="p-4 border-t border-slate-800">
+                        <div class="flex space-x-3">
+                            <input type="text" id="adminMsgInput" placeholder="Message admin..."
+                                class="flex-1 px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:border-purple-500 transition-all"
+                                onkeypress="if (event.key === 'Enter') sendAdminMessage();">
+                            <button onclick="sendAdminMessage()"
+                                class="px-6 py-3 candidate-gradient hover:opacity-90 rounded-xl font-semibold transition-all">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- ============ GROUPS SECTION ============ -->
+            <div id="section-groups" class="hidden animate-fade-in">
+                <h2 class="text-2xl lg:text-3xl font-bold mb-6">Chat Groups</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {% for group in groups %}
+                    <div class="glass-panel rounded-2xl p-6 hover:bg-slate-800/50 transition cursor-pointer" onclick="openGroupChat({{ group.id }}, '{{ group.name }}', '{{ group.display_name }}')">
+                        <div class="flex items-start justify-between mb-3">
+                            <div class="w-12 h-12 {% if group.group_type == 'general' %}bg-purple-600/20{% else %}bg-blue-600/20{% endif %} rounded-xl flex items-center justify-center">
+                                <i class="fas {{ group.icon }} {% if group.group_type == 'general' %}text-purple-400{% else %}text-blue-400{% endif %} text-xl"></i>
+                            </div>
+                            <span class="text-xs bg-slate-800 px-2 py-1 rounded-full">{{ group.member_count }} members</span>
+                        </div>
+                        <h3 class="font-bold text-lg mb-1">{{ group.display_name }}</h3>
+                        <p class="text-sm text-slate-400">{% if group.description %}{{ group.description }}{% else %}No description{% endif %}</p>
+                        {% if group.admin_only_post %}
+                        <span class="inline-block mt-2 text-xs bg-red-500/20 text-red-400 px-2 py-1 rounded"><i class="fas fa-lock mr-1"></i>Admin Only</span>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- ============ PROFILE SECTION ============ -->
+            <div id="section-profile" class="hidden animate-fade-in">
+                <h2 class="text-2xl lg:text-3xl font-bold mb-6">My Profile</h2>
+                <div class="glass-panel rounded-2xl p-6 lg:p-8 max-w-2xl">
+                    <div class="flex items-center space-x-4 mb-6">
+                        <img src="{{ candidate.photo_url }}" class="w-24 h-24 rounded-full object-cover border-2 border-purple-500" onerror="this.src='/static/images/default-avatar.svg'">
+                        <div>
+                            <h3 class="text-xl font-bold">{{ candidate.name }}</h3>
+                            <p class="text-purple-400 font-mono">{{ candidate.reg_number }}</p>
+                        </div>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs text-slate-500 mb-1">Email</label>
+                                <p class="text-sm">{% if candidate.email %}{{ candidate.email }}{% else %}Not set{% endif %}</p>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-500 mb-1">Phone</label>
+                                <p class="text-sm">{% if candidate.phone %}{{ candidate.phone }}{% else %}Not set{% endif %}</p>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">Subjects</label>
+                            <div class="flex flex-wrap gap-2">
+                                {% for subject in candidate.subjects %}
+                                <span class="px-3 py-1 bg-slate-800 rounded-lg text-sm">{{ subject }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">Status</label>
+                            <div class="flex items-center space-x-4">
+                                <span class="px-3 py-1 {% if candidate.is_active %}bg-green-500/20 text-green-400{% else %}bg-red-500/20 text-red-400{% endif %} rounded-lg text-sm">
+                                    {% if candidate.is_active %}Active{% else %}Suspended{% endif %}
+                                </span>
+                                <span class="px-3 py-1 {% if is_unlocked %}bg-green-500/20 text-green-400{% else %}bg-yellow-500/20 text-yellow-400{% endif %} rounded-lg text-sm">
+                                    <i class="fas {% if is_unlocked %}fa-unlock{% else %}fa-lock{% endif %} mr-1"></i>{% if is_unlocked %}Unlocked{% else %}Locked{% endif %}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Group Chat Modal -->
+    <div id="groupChatModal" class="fixed inset-0 bg-black/70 z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel rounded-2xl w-full max-w-3xl h-[80vh] flex flex-col overflow-hidden">
+            <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-purple-600/20 rounded-full flex items-center justify-center">
+                        <i class="fas fa-users" id="groupChatIcon"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold" id="groupChatTitle">Group Chat</h3>
+                        <p class="text-xs text-slate-400" id="groupChatSubtitle"></p>
+                    </div>
+                </div>
+                <button onclick="closeGroupChat()" class="p-2 text-slate-400 hover:text-white transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div id="groupMessagesArea" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
+            <div class="p-4 border-t border-slate-800">
+                <div class="flex space-x-3">
+                    <button onclick="startVoiceRecording()" class="px-3 py-3 bg-slate-700 hover:bg-slate-600 rounded-xl transition">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                    <input type="text" id="groupMessageInput" placeholder="Type a message..."
+                        class="flex-1 px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:border-purple-500 transition-all"
+                        onkeypress="if (event.key === 'Enter') sendGroupMessage();">
+                    <button onclick="sendGroupMessage()"
+                        class="px-6 py-3 candidate-gradient hover:opacity-90 rounded-xl font-semibold transition-all">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unlock Modal -->
+    <div id="unlockModal" class="fixed inset-0 bg-black/70 z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel rounded-2xl p-8 max-w-md w-full text-center">
+            <div class="w-20 h-20 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-lock text-yellow-400 text-3xl"></i>
+            </div>
+            <h3 class="text-xl font-bold mb-2">Unlock Messaging</h3>
+            <p class="text-slate-400 mb-4">Enter the password to unlock direct messaging</p>
+            <input type="password" id="modalUnlockPassword" placeholder="Enter password"
+                class="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:border-yellow-500 transition-all text-center text-lg tracking-widest mb-4"
+                onkeypress="if (event.key === 'Enter') attemptModalUnlock();">
+            <button onclick="attemptModalUnlock()"
+                class="w-full py-3 bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500 rounded-xl font-bold transition-all">
+                <i class="fas fa-unlock mr-2"></i>Unlock
+            </button>
+            <div id="modalUnlockError" class="hidden mt-3 p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 text-sm"></div>
+        </div>
+    </div>
+
+    <!-- Voice Recording Modal -->
+    <div id="voiceModal" class="fixed inset-0 bg-black/70 z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel rounded-2xl p-8 max-w-md w-full text-center">
+            <div class="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+                <i class="fas fa-microphone text-red-400 text-3xl"></i>
+            </div>
+            <h3 class="text-xl font-bold mb-2">Recording...</h3>
+            <p class="text-slate-400 mb-6" id="recordingTime">0:00</p>
+            <div class="flex justify-center space-x-4">
+                <button onclick="stopVoiceRecording()" class="px-6 py-3 bg-red-600 hover:bg-red-500 rounded-xl font-semibold transition-all">
+                    <i class="fas fa-stop mr-2"></i>Stop
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============== GLOBAL STATE ==============
+        let currentSection = 'home';
+        let currentGroup = null;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let recordingTimer = null;
+        let recordingSeconds = 0;
+        let ws = null;
+        let candidateReg = '{{ candidate.reg_number }}';
+        let isUnlocked = {% if is_unlocked %}true{% else %}false{% endif %};
+        let isPaused = {% if messaging_paused %}true{% else %}false{% endif %};
+
+        // ============== UI FUNCTIONS ==============
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+            document.getElementById('sidebarOverlay').classList.toggle('open');
+        }
+
+        function showSection(section) {
+            // Hide all sections and reset all nav items to inactive
+            document.querySelectorAll('[id^="section-"]').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.classList.remove('active', 'text-purple-300');
+                el.classList.add('text-slate-300');
+            });
+
+            // Show selected section
+            const sectionEl = document.getElementById(`section-${section}`);
+            if (sectionEl) sectionEl.classList.remove('hidden');
+
+            // Activate correct nav item
+            const navEl = document.getElementById(`nav-${section}`);
+            if (navEl) {
+                navEl.classList.add('active');
+                navEl.classList.remove('text-slate-300');
+            }
+
+            currentSection = section;
+
+            // Only close sidebar if it's actually open
+            const sidebar = document.getElementById('sidebar');
+            if (window.innerWidth < 1024 && sidebar.classList.contains('open')) toggleSidebar();
+
+            if (section === 'messages' && isUnlocked && !isPaused) loadAdminMessages();
+            if (section === 'groups') loadGroupList();
+        }
+
+        function showToast(title, message, icon = 'fa-check-circle', color = 'text-green-400') {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastTitle').textContent = title;
+            document.getElementById('toastMessage').textContent = message;
+            document.getElementById('toastIcon').className = `fas ${icon} ${color} mt-1`;
+            toast.classList.remove('translate-x-full');
+            setTimeout(() => toast.classList.add('translate-x-full'), 4000);
+        }
+
+        function showUnlockModal() {
+            document.getElementById('unlockModal').classList.remove('hidden');
+            document.getElementById('modalUnlockPassword').focus();
+        }
+
+        function showNotifications() {
+            showToast('Notifications', 'No new notifications', 'fa-bell', 'text-blue-400');
+        }
+
+        // ============== AUTH ==============
+        async function logout() {
+            try {
+                await fetch('/api/auth/candidate-logout/', { method: 'POST' });
+            } catch (e) {}
+            window.location.href = '/';
+        }
+
+        // ============== UNLOCK ==============
+        async function attemptUnlock() {
+            const password = document.getElementById('unlockPasswordInput').value.trim();
+            const errorDiv = document.getElementById('unlockError');
+            
+            if (!password) {
+                errorDiv.textContent = 'Please enter the password';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/unlock/verify/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+                
+                if (response.ok) {
+                    showToast('Success', 'Messaging unlocked! Reloading...', 'fa-unlock', 'text-green-400');
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    const data = await response.json();
+                    errorDiv.textContent = data.error || 'Incorrect password';
+                    errorDiv.classList.remove('hidden');
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Error verifying password';
+                errorDiv.classList.remove('hidden');
+            }
+        }
+
+        async function attemptModalUnlock() {
+            const password = document.getElementById('modalUnlockPassword').value.trim();
+            const errorDiv = document.getElementById('modalUnlockError');
+            
+            if (!password) {
+                errorDiv.textContent = 'Please enter the password';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/unlock/verify/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+                
+                if (response.ok) {
+                    document.getElementById('unlockModal').classList.add('hidden');
+                    showToast('Success', 'Messaging unlocked! Reloading...', 'fa-unlock', 'text-green-400');
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    const data = await response.json();
+                    errorDiv.textContent = data.error || 'Incorrect password';
+                    errorDiv.classList.remove('hidden');
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Error verifying password';
+                errorDiv.classList.remove('hidden');
+            }
+        }
+
+        // ============== MESSAGES ==============
+        async function loadAdminMessages() {
+            try {
+                const response = await fetch(`/api/messages/candidate/${candidateReg}/?other=admin`);
+                const data = await response.json();
+                const messages = data.messages || [];
+                
+                const area = document.getElementById('adminMessagesArea');
+                if (!area) return;
+                
+                if (messages.length === 0) {
+                    area.innerHTML = '<div class="h-full flex flex-col items-center justify-center text-slate-500"><p>No messages yet. Say hello!</p></div>';
+                    return;
+                }
+                
+                area.innerHTML = messages.map(msg => {
+                    const isMe = msg.sender_type === 'candidate';
+                    return `
+                        <div class="flex ${isMe ? 'justify-end' : 'justify-start'}">
+                            <div class="message-bubble ${isMe ? 'message-sent' : 'message-received'}">
+                                <p class="text-sm">${msg.content}</p>
+                                <p class="text-xs mt-1 ${isMe ? 'text-purple-200' : 'text-slate-500'}">${new Date(msg.created_at).toLocaleTimeString()}</p>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                area.scrollTop = area.scrollHeight;
+            } catch (error) {
+                console.error('Error loading messages:', error);
+            }
+        }
+
+        async function sendAdminMessage() {
+            const input = document.getElementById('adminMsgInput');
+            const content = input.value.trim();
+            if (!content) return;
+            
+            try {
+                const response = await fetch('/api/messages/send/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        receiver_type: 'admin',
+                        receiver_id: 'admin',
+                        receiver_name: 'Administrator',
+                        content: content,
+                    })
+                });
+                
+                if (response.ok) {
+                    input.value = '';
+                    loadAdminMessages();
+                    
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({
+                            type: 'private_message',
+                            receiver_id: 'admin',
+                            content: content,
+                            sender_name: '{{ candidate.name }}',
+                            timestamp: new Date().toISOString()
+                        }));
+                    }
+                }
+            } catch (error) {
+                showToast('Error', 'Failed to send message', 'fa-exclamation-circle', 'text-red-400');
+            }
+        }
+
+        // ============== GROUPS ==============
+        async function loadGroupList() {
+            // Groups are already rendered server-side
+        }
+
+        async function openGroupChat(groupId, groupName, displayName) {
+            currentGroup = { id: groupId, name: groupName, display_name: displayName };
+            document.getElementById('groupChatTitle').textContent = displayName;
+            document.getElementById('groupChatModal').classList.remove('hidden');
+            loadGroupMessages(groupId);
+            
+            // Join WebSocket group room
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'join_group',
+                    group_name: groupName,
+                }));
+            }
+        }
+
+        async function loadGroupMessages(groupId) {
+            try {
+                const response = await fetch(`/api/groups/${groupId}/messages/`);
+                const data = await response.json();
+                const messages = data.messages || [];
+                
+                const area = document.getElementById('groupMessagesArea');
+                if (messages.length === 0) {
+                    area.innerHTML = '<div class="h-full flex flex-col items-center justify-center text-slate-500"><p>No messages yet. Be the first!</p></div>';
+                    return;
+                }
+                
+                area.innerHTML = messages.map(msg => {
+                    const isMe = msg.sender_id === candidateReg;
+                    return `
+                        <div class="flex ${isMe ? 'justify-end' : 'justify-start'}">
+                            <div class="max-w-[70%]">
+                                ${!isMe ? `<p class="text-xs text-slate-500 mb-1">${msg.sender_name}</p>` : ''}
+                                <div class="message-bubble ${isMe ? 'message-sent' : 'message-received'}">
+                                    <p class="text-sm">${msg.content}</p>
+                                    <p class="text-xs mt-1 ${isMe ? 'text-purple-200' : 'text-slate-500'}">${new Date(msg.created_at).toLocaleTimeString()}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                area.scrollTop = area.scrollHeight;
+            } catch (error) {
+                console.error('Error loading group messages:', error);
+            }
+        }
+
+        async function sendGroupMessage() {
+            if (!currentGroup) return;
+            
+            const input = document.getElementById('groupMessageInput');
+            const content = input.value.trim();
+            if (!content) return;
+            
+            try {
+                const response = await fetch('/api/groups/send/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        group_id: currentGroup.id,
+                        content: content,
+                    })
+                });
+                
+                if (response.ok) {
+                    input.value = '';
+                    loadGroupMessages(currentGroup.id);
+                    
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({
+                            type: 'group_message',
+                            group_id: currentGroup.id,
+                            group_name: currentGroup.name,
+                            content: content,
+                            sender_name: '{{ candidate.name }}',
+                            timestamp: new Date().toISOString()
+                        }));
+                    }
+                }
+            } catch (error) {
+                showToast('Error', 'Failed to send message', 'fa-exclamation-circle', 'text-red-400');
+            }
+        }
+
+        function closeGroupChat() {
+            document.getElementById('groupChatModal').classList.add('hidden');
+            currentGroup = null;
+        }
+
+        // ============== VOICE MESSAGES ==============
+        async function startVoiceRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                recordingSeconds = 0;
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+                
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    await uploadVoiceMessage(audioBlob);
+                    stream.getTracks().forEach(track => track.stop());
+                };
+                
+                mediaRecorder.start();
+                document.getElementById('voiceModal').classList.remove('hidden');
+                
+                recordingTimer = setInterval(() => {
+                    recordingSeconds++;
+                    const mins = Math.floor(recordingSeconds / 60);
+                    const secs = recordingSeconds % 60;
+                    document.getElementById('recordingTime').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+                }, 1000);
+            } catch (error) {
+                showToast('Error', 'Could not access microphone', 'fa-exclamation-circle', 'text-red-400');
+            }
+        }
+
+        function stopVoiceRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            clearInterval(recordingTimer);
+            document.getElementById('voiceModal').classList.add('hidden');
+            document.getElementById('recordingTime').textContent = '0:00';
+        }
+
+        async function uploadVoiceMessage(audioBlob) {
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'voice.webm');
+            formData.append('duration', recordingSeconds);
+            
+            if (currentGroup) {
+                formData.append('receiver_type', 'group');
+                formData.append('receiver_id', 'group');
+                formData.append('group_id', currentGroup.id);
+            }
+            
+            try {
+                const response = await fetch('/api/voice/upload/', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    showToast('Success', 'Voice message sent!', 'fa-microphone');
+                    if (currentGroup) {
+                        loadGroupMessages(currentGroup.id);
+                    }
+                }
+            } catch (error) {
+                showToast('Error', 'Failed to send voice message', 'fa-exclamation-circle', 'text-red-400');
+            }
+        }
+
+        // ============== WEBSOCKET ==============
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/chat/candidate/${candidateReg}/`;
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'private_message') {
+                    if (currentSection === 'messages') {
+                        loadAdminMessages();
+                    }
+                    showToast('New Message', `From ${data.sender_name}`, 'fa-comment', 'text-blue-400');
+                } else if (data.type === 'group_message') {
+                    if (currentGroup && data.group_id === currentGroup.id) {
+                        loadGroupMessages(currentGroup.id);
+                    }
+                } else if (data.type === 'notification') {
+                    showToast('Notification', data.message, 'fa-bell', 'text-yellow-400');
+                }
+            };
+            
+            ws.onclose = () => {
+                console.log('WebSocket disconnected. Reconnecting...');
+                setTimeout(connectWebSocket, 3000);
+            };
+            
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+        }
+
+        // ============== CSRF HELPER ==============
+        function getCsrfToken() {
+            const name = 'csrftoken';
+            const cookies = document.cookie.split(';');
+            for (let c of cookies) {
+                const trimmed = c.trim();
+                const eqIdx = trimmed.indexOf('=');
+                if (eqIdx > -1 && trimmed.substring(0, eqIdx) === name) {
+                    return decodeURIComponent(trimmed.substring(eqIdx + 1));
+                }
+            }
+            return '';
+        }
+
+        // Patch all mutating fetch calls to include CSRF token automatically
+        const _origFetch = window.fetch.bind(window);
+        window.fetch = function(url, opts = {}) {
+            const method = (opts.method || 'GET').toUpperCase();
+            if (method !== 'GET' && method !== 'HEAD') {
+                opts.headers = opts.headers || {};
+                if (!opts.headers['X-CSRFToken']) {
+                    opts.headers['X-CSRFToken'] = getCsrfToken();
+                }
+            }
+            return _origFetch(url, opts);
+        };
+
+        // ============== INIT ==============
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Auth guard: bounce unauthenticated direct URL visitors back to login
+            try {
+                const res = await _origFetch('/api/auth/candidate-logout/', { method: 'HEAD', credentials: 'same-origin' });
+                // If we get 405 Method Not Allowed it means server accepted the request (auth OK)
+                // If we get 302/401/403 we need to redirect
+                if (res.status === 401 || res.status === 403) {
+                    window.location.replace('/candidate/login/');
+                    return;
+                }
+            } catch (e) {
+                // network error — let Django session guard handle it
+            }
+            connectWebSocket();
+
+            {% if is_unlocked and not messaging_paused %}
+            loadAdminMessages();
+            {% endif %}
+        });
+    </scri
