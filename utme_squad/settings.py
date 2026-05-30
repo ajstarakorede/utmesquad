@@ -154,23 +154,27 @@ SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_AGE = 86400          # 24 hours
 SESSION_COOKIE_HTTPONLY = True      # JS cannot steal the session cookie
 SESSION_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_SECURE = not DEBUG   # True in production (HTTPS required)
+SESSION_COOKIE_SECURE = False  # Render handles SSL termination
 
 # ── CSRF ──────────────────────────────────────────────────────────────────────
 CSRF_COOKIE_HTTPONLY = False        # Must be JS-readable for X-CSRFToken header
 CSRF_COOKIE_SAMESITE = 'Lax'
-CSRF_COOKIE_SECURE = not DEBUG      # True in production
+CSRF_COOKIE_SECURE = False  # Render handles SSL termination
 
 # ── Security Headers ──────────────────────────────────────────────────────────
 X_FRAME_OPTIONS = 'DENY'
 SECURE_CONTENT_TYPE_NOSNIFF = True
 
+# Render handles HTTPS — never redirect inside the server
+SECURE_SSL_REDIRECT = False
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 if not DEBUG:
-    SECURE_SSL_REDIRECT = True
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
     SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
 
 # ── Internationalisation ──────────────────────────────────────────────────────
 LANGUAGE_CODE = 'en-us'
