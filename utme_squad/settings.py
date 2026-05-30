@@ -17,8 +17,9 @@ if not SECRET_KEY:
 
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
+ALLOWED_HOSTS = ['utmesquad.onrender.com', 'localhost', '127.0.0.1']
 
+CSRF_TRUSTED_ORIGINS = ['https://utmesquad.onrender.com']
 # ── Apps ──────────────────────────────────────────────────────────────────────
 INSTALLED_APPS = [
     'daphne',
